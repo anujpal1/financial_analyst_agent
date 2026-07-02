@@ -1,0 +1,19 @@
+[project]
+name = "financial-analyst-agent"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "chromadb>=1.5.9",
+    "ddgs>=9.14.4",
+    "langchain-chroma>=1.1.0",
+    "langchain-community>=0.4.2",
+    "langchain-core>=1.4.8",
+    "langchain-ollama>=1.1.0",
+    "langgraph>=1.2.7",
+    "requests>=2.34.2",
+    "streamlit>=1.58.0",
+    "yfinance>=1.5.1",
+]
