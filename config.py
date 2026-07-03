@@ -1,4 +1,10 @@
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+
 
 # Target Execution Engine
 MODEL_NAME = "llama3.1:8b"
@@ -16,3 +22,16 @@ VECTOR_DB_DIR = os.path.join(BASE_DIR, "memory", "chroma_db")
 
 EMBEDDING_MODEL_NAME = "nomic-embed-text"
 VECTOR_DB_DIR = "chroma_db"
+
+
+
+import sys
+from loguru import logger
+
+# Configure Loguru to output to both console and a rolling daily log file
+logger.remove()  # Remove default handler
+logger.add(sys.stderr, level="INFO", format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level:7}</level> | <cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+logger.add("logs/agent_system.log", rotation="500 MB", retention="10 days", level="DEBUG")
+
+# Expose it globally for other files
+SYSTEM_LOGGER = logger

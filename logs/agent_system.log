@@ -1,0 +1,19 @@
+2026-07-03 13:24:17.168 | INFO     | tools.financial_tools:analyze_historical_trends:198 - Initiating historical trend engine for ticker: NVDA
+2026-07-03 13:24:21.234 | INFO     | tools.financial_tools:analyze_historical_trends:224 - Calculated 30D Momentum: -12.71%, Volatility: 40.55% for NVDA
+2026-07-03 13:24:25.785 | INFO     | tools.financial_tools:analyze_historical_trends:244 - Plotly visualization asset safely compiled at reports/charts/NVDA_trend.html
+2026-07-03 13:24:58.500 | INFO     | utils.pdf_generator:export_markdown_to_pdf:19 - Compiling PDF export generation for path: reports/Executive_Briefing.pdf
+2026-07-03 13:24:58.504 | ERROR    | utils.pdf_generator:export_markdown_to_pdf:41 - PDF compiler crashed: Not enough horizontal space to render a single character
+2026-07-03 13:34:21.427 | INFO     | tools.financial_tools:analyze_historical_trends:198 - Initiating historical trend engine for ticker: NVDA
+2026-07-03 13:34:21.829 | INFO     | tools.financial_tools:analyze_historical_trends:224 - Calculated 30D Momentum: -12.71%, Volatility: 40.55% for NVDA
+2026-07-03 13:34:21.902 | INFO     | tools.financial_tools:analyze_historical_trends:244 - Plotly visualization asset safely compiled at reports/charts/NVDA_trend.html
+2026-07-03 13:34:55.992 | INFO     | utils.pdf_generator:export_markdown_to_pdf:23 - Compiling PDF export generation for path: reports/Executive_Briefing.pdf
+2026-07-03 13:34:56.004 | ERROR    | utils.pdf_generator:export_markdown_to_pdf:48 - PDF compiler crashed: Not enough horizontal space to render a single character
+2026-07-03 14:30:31.018 | INFO     | utils.ticker_resolver:resolve_query_tickers:25 - Normalizing query for entity resolution: 'analysis the top 3 stocks in market'
+2026-07-03 14:30:31.020 | INFO     | utils.ticker_resolver:resolve_query_tickers:37 - Local dictionary miss. Triggering pre-processing extraction pass...
+2026-07-03 14:30:44.741 | INFO     | utils.ticker_resolver:resolve_query_tickers:64 - Resolution outcome: Extracted Tickers -> []
+2026-07-03 14:33:40.885 | INFO     | utils.pdf_generator:export_markdown_to_pdf:23 - Compiling PDF export generation for path: reports/Executive_Briefing.pdf
+2026-07-03 14:33:40.892 | ERROR    | utils.pdf_generator:export_markdown_to_pdf:48 - PDF compiler crashed: Not enough horizontal space to render a single character
+2026-07-03 18:18:28.387 | INFO     | utils.ticker_resolver:resolve_query_tickers:25 - Normalizing query for entity resolution: 'should i buy meta share'
+2026-07-03 18:18:28.391 | INFO     | utils.ticker_resolver:resolve_query_tickers:64 - Resolution outcome: Extracted Tickers -> ['META']
+2026-07-03 18:20:59.527 | INFO     | utils.pdf_generator:export_markdown_to_pdf:23 - Compiling PDF export generation for path: reports/Executive_Briefing.pdf
+2026-07-03 18:20:59.532 | ERROR    | utils.pdf_generator:export_markdown_to_pdf:48 - PDF compiler crashed: Not enough horizontal space to render a single character
