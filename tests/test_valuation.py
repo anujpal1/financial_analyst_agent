@@ -26,8 +26,9 @@ def _valid_inputs(**updates: object) -> DCFInputs:
 def test_valid_dcf_inputs_produce_three_scenarios() -> None:
     result = calculate_dcf(_valid_inputs())
     assert [scenario.name for scenario in result.scenarios] == ["Bear", "Base", "Bull"]
-    assert all(scenario.enterprise_value > 0 for scenario in result.scenarios)
-    assert all(scenario.equity_value is not None for scenario in result.scenarios)
+    assert result.method == "FCFE"
+    assert all(scenario.enterprise_value is None for scenario in result.scenarios)
+    assert all(scenario.equity_value > 0 for scenario in result.scenarios)
     assert all(scenario.per_share_value is not None for scenario in result.scenarios)
 
 
@@ -48,10 +49,16 @@ def test_missing_shares_omits_only_per_share_value() -> None:
     ("cash", "debt"),
     [(None, 1_000_000.0), (2_000_000.0, None), (None, None)],
 )
-def test_missing_debt_or_cash_omits_equity_value(cash: float | None, debt: float | None) -> None:
+def test_fcfe_does_not_apply_cash_or_debt_bridge(
+    cash: float | None,
+    debt: float | None,
+) -> None:
     result = calculate_dcf(_valid_inputs(cash=cash, debt=debt))
-    assert all(scenario.equity_value is None for scenario in result.scenarios)
-    assert all(scenario.per_share_value is None for scenario in result.scenarios)
+    baseline = calculate_dcf(_valid_inputs(cash=None, debt=None))
+    assert [item.equity_value for item in result.scenarios] == [
+        item.equity_value for item in baseline.scenarios
+    ]
+    assert all(scenario.per_share_value is not None for scenario in result.scenarios)
 
 
 @pytest.mark.parametrize("discount_rate", [0.0, -0.1, 1.0])
@@ -77,5 +84,6 @@ def test_negative_debt_is_rejected() -> None:
 
 def test_scenario_output_is_consistent_for_positive_fcf() -> None:
     result = calculate_dcf(_valid_inputs())
-    enterprise_values = [scenario.enterprise_value for scenario in result.scenarios]
-    assert enterprise_values == sorted(enterprise_values)
+    equity_values = [scenario.equity_value for scenario in result.scenarios]
+    assert equity_values == sorted(equity_values)
+    assert all(0 < scenario.terminal_value_percentage < 1 for scenario in result.scenarios)

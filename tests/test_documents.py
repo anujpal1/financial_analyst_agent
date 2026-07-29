@@ -34,6 +34,8 @@ def test_uploaded_document_preserves_all_page_numbers() -> None:
     assert uploaded.safe_filename == "statement.pdf"
     assert uploaded.page_count == 7
     assert {chunk.page_number for chunk in uploaded.chunks} == set(range(1, 8))
+    assert all(chunk.local_embedding for chunk in uploaded.chunks)
+    assert "local_embedding" not in uploaded.model_dump()["chunks"][0]
 
 
 def test_non_pdf_is_rejected() -> None:

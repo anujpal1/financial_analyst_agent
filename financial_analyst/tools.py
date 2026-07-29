@@ -33,6 +33,7 @@ def build_tool_registry(
     transcripts = transcript_client or FMPTranscriptClient(
         api_key=settings.fmp_api_key,
         timeout=settings.request_timeout_seconds,
+        retry_count=settings.retry_count,
     )
 
     tools = (
@@ -93,13 +94,12 @@ def run_dcf_tool(
     diluted_shares: float | None = None,
     currency: str = "USD",
     period_end: str | None = None,
+    projection_years: int = 5,
 ) -> DataResult:
-    """Calculate DCF scenarios, refusing to invent a missing base cash flow."""
+    """Calculate an FCFE DCF without adding cash or subtracting debt."""
 
     required = {
         "base_free_cash_flow": base_free_cash_flow,
-        "cash": cash,
-        "debt": debt,
         "diluted_shares": diluted_shares,
     }
     missing = [name for name, value in required.items() if value is None]
@@ -123,6 +123,7 @@ def run_dcf_tool(
             growth_rate=growth_rate,
             discount_rate=discount_rate,
             terminal_growth_rate=terminal_growth_rate,
+            projection_years=projection_years,
             cash=cash,
             debt=debt,
             diluted_shares=diluted_shares,
@@ -137,6 +138,8 @@ def run_dcf_tool(
             "discount_rate": discount_rate,
             "terminal_growth_rate": terminal_growth_rate,
             "projection_years": inputs.projection_years,
+            "method": "FCFE",
+            "cash_flow_definition": result.cash_flow_definition,
             "cash": cash,
             "debt": debt,
             "diluted_shares": diluted_shares,
@@ -144,12 +147,10 @@ def run_dcf_tool(
         return DataResult(
             name="discounted_cash_flow",
             status=status,
-            source="Deterministic DCF calculation",
+            source="Deterministic FCFE DCF calculation",
             values=values,
             message="; ".join(result.warnings) if result.warnings else None,
             missing_fields=_valuation_missing_fields(
-                cash=cash,
-                debt=debt,
                 diluted_shares=diluted_shares,
             ),
             content_type="valuation",

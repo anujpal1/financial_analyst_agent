@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from financial_analyst.tickers import (
+from financial_analyst.workflow import (
     TickerValidationError,
     normalize_ticker,
     resolve_ticker,

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import re
+import time
 from datetime import UTC, datetime
 from numbers import Real
 from typing import Any
@@ -62,12 +63,40 @@ def _period_text(value: Any) -> str | None:
 class YFinanceClient:
     """Per-analysis yfinance boundary with bounded in-memory request reuse."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, cache_ttl_seconds: float = 300.0) -> None:
+        self.cache_ttl_seconds = cache_ttl_seconds
         self._tickers: dict[str, Any] = {}
         self._market_results: dict[str, DataResult] = {}
         self._statement_results: dict[str, DataResult] = {}
         self._news_results: dict[str, DataResult] = {}
         self._info_results: dict[str, dict[str, Any]] = {}
+        self._cache_times: dict[tuple[str, str], float] = {}
+
+    def refresh(self, ticker: str | None = None) -> None:
+        """Expire cached source results without retaining credentials or clients."""
+
+        normalized = ticker.upper() if ticker else None
+        for cache in (
+            self._market_results,
+            self._statement_results,
+            self._news_results,
+            self._info_results,
+            self._tickers,
+        ):
+            if normalized:
+                cache.pop(normalized, None)
+            else:
+                cache.clear()
+        for key in list(self._cache_times):
+            if normalized is None or key[1] == normalized:
+                del self._cache_times[key]
+
+    def _fresh(self, namespace: str, ticker: str) -> bool:
+        observed = self._cache_times.get((namespace, ticker))
+        return bool(observed is not None and time.monotonic() - observed < self.cache_ttl_seconds)
+
+    def _mark(self, namespace: str, ticker: str) -> None:
+        self._cache_times[(namespace, ticker)] = time.monotonic()
 
     def _ticker(self, ticker: str) -> Any:
         normalized = ticker.upper()
@@ -79,7 +108,7 @@ class YFinanceClient:
         """Return the one canonical price object used throughout a research run."""
 
         ticker = ticker.upper()
-        if ticker in self._market_results:
+        if ticker in self._market_results and self._fresh("market", ticker):
             return self._market_results[ticker].model_copy(deep=True)
 
         source = "Yahoo Finance via yfinance"
@@ -174,6 +203,7 @@ class YFinanceClient:
                 ),
             )
         self._market_results[ticker] = result
+        self._mark("market", ticker)
         return result.model_copy(deep=True)
 
     def price_history(self, ticker: str) -> DataResult:
@@ -199,7 +229,7 @@ class YFinanceClient:
         """Return up to five aligned annual periods from yfinance statements."""
 
         ticker = ticker.upper()
-        if ticker in self._statement_results:
+        if ticker in self._statement_results and self._fresh("statements", ticker):
             return self._statement_results[ticker].model_copy(deep=True)
 
         source = "Yahoo Finance via yfinance"
@@ -301,13 +331,14 @@ class YFinanceClient:
                 ),
             )
         self._statement_results[ticker] = result
+        self._mark("statements", ticker)
         return result.model_copy(deep=True)
 
     def recent_news(self, ticker: str) -> DataResult:
         """Return deduplicated company-relevant news with transparent scoring reasons."""
 
         ticker = ticker.upper()
-        if ticker in self._news_results:
+        if ticker in self._news_results and self._fresh("news", ticker):
             return self._news_results[ticker].model_copy(deep=True)
 
         source = "Yahoo Finance news via yfinance"
@@ -394,15 +425,17 @@ class YFinanceClient:
                 content_type="news",
             )
         self._news_results[ticker] = result
+        self._mark("news", ticker)
         return result.model_copy(deep=True)
 
     def _info(self, ticker: str) -> dict[str, Any]:
         normalized = ticker.upper()
-        if normalized not in self._info_results:
+        if normalized not in self._info_results or not self._fresh("info", normalized):
             try:
                 self._info_results[normalized] = self._ticker(normalized).info or {}
             except Exception:
                 self._info_results[normalized] = {}
+            self._mark("info", normalized)
         return self._info_results[normalized]
 
 
@@ -482,6 +515,35 @@ def _build_annual_periods(
                 ),
                 debt=_first_number(balance_values, "Total Debt"),
                 diluted_shares=_number(_lookup(income_values, "Diluted Average Shares")),
+                definitions={
+                    "revenue": "Total Revenue as normalized by yfinance",
+                    "net_income": "Net Income as normalized by yfinance",
+                    "operating_cash_flow": "Operating Cash Flow as normalized by yfinance",
+                    "capital_expenditure": "Capital Expenditure as normalized by yfinance",
+                    "free_cash_flow": (
+                        "Provider Free Cash Flow when available; otherwise operating cash "
+                        "flow less capital expenditure"
+                    ),
+                    "cash": (
+                        "Cash, cash equivalents, and short-term investments when available; "
+                        "otherwise cash and cash equivalents"
+                    ),
+                    "debt": "Total Debt as normalized by yfinance",
+                    "diluted_shares": "Diluted Average Shares as normalized by yfinance",
+                },
+                source_by_metric={
+                    metric: "Yahoo Finance via yfinance"
+                    for metric in (
+                        "revenue",
+                        "net_income",
+                        "operating_cash_flow",
+                        "capital_expenditure",
+                        "free_cash_flow",
+                        "cash",
+                        "debt",
+                        "diluted_shares",
+                    )
+                },
             )
         )
     return [

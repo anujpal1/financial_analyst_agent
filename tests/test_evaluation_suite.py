@@ -35,9 +35,9 @@ from financial_analyst.models import (
 )
 from financial_analyst.reporting import DISCLAIMER, build_validated_report
 from financial_analyst.security import redact_text
-from financial_analyst.tickers import resolve_ticker
 from financial_analyst.tools import run_dcf_tool
 from financial_analyst.valuation import DCFInputs, calculate_dcf
+from financial_analyst.workflow import resolve_ticker
 
 
 def _market(*, price: float | None = 100.0) -> DataResult:
@@ -380,7 +380,7 @@ def test_eval_failed_market_retrieval_does_not_create_unsupported_timestamp_clai
         data=[_market(price=None)],
         analysis_date=datetime(2026, 7, 29, tzinfo=UTC),
     )
-    claims, validation = result[5], result[-1]
+    claims, validation = result.claims, result.validation
     assert all(claim.claim_id != "claim-market_timestamp" for claim in claims)
     assert validation.report_complete
 
@@ -531,7 +531,7 @@ def test_eval_report_regenerates_once_after_blocking_validation() -> None:
         data=_analysis_data(),
         analysis_date=datetime(2026, 7, 29, tzinfo=UTC),
     )
-    report, validation = result[0], result[-1]
+    report, validation = result.report_markdown, result.validation
     assert validation.regeneration_attempted
     assert validation.report_complete
     assert report.count("## Research Conclusion") == 1
@@ -551,7 +551,7 @@ def test_eval_persistent_validation_failure_returns_partial_report() -> None:
         data=_analysis_data(),
         analysis_date=datetime(2026, 7, 29, tzinfo=UTC),
     )
-    report, validation = result[0], result[-1]
+    report, validation = result.report_markdown, result.validation
     assert not validation.report_complete
     assert report.startswith("> **Partial report")
     assert DISCLAIMER in report

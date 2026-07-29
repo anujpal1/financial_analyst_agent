@@ -117,9 +117,18 @@ def _mock_tools() -> tuple[StructuredTool, ...]:
 def _fake_llm() -> FakeListChatModel:
     return FakeListChatModel(
         responses=[
+            (
+                '{"selected_tools":["market_snapshot","financial_statements",'
+                '"sec_company_facts","recent_news","discounted_cash_flow"],'
+                '"purposes":{"market_snapshot":"canonical price",'
+                '"financial_statements":"annual facts","sec_company_facts":"official facts",'
+                '"recent_news":"developments","discounted_cash_flow":"valuation"},'
+                '"requested_outputs":["dashboard"],"required_metrics":["revenue"],'
+                '"required_periods":["annual"],"expected_evidence":["statements"]}'
+            ),
             "## Research Conclusion\nEvidence is partial.\n"
             "## Risk Factors\n- Missing official facts.\n"
-            "## Assumptions\n- Provider observations are used as labelled."
+            "## Assumptions\n- Provider observations are used as labelled.",
         ]
     )
 
@@ -147,6 +156,10 @@ def test_agent_graph_accepts_common_chat_model_interface() -> None:
     )
     assert result.ticker == "MSFT"
     assert "Financial Research Report" in result.report_markdown
+    assert result.research_plan is not None
+    assert result.run_manifest is not None
+    assert result.run_manifest.llm_calls >= 2
+    assert result.run_manifest.estimated_cost is None
 
 
 def test_mocked_end_to_end_flow_includes_dcf_and_disclaimer() -> None:
@@ -166,10 +179,45 @@ def test_mocked_end_to_end_flow_includes_dcf_and_disclaimer() -> None:
     assert "Bear scenario" in result.report_markdown
     assert DISCLAIMER in result.report_markdown
     assert "BUY" not in result.report_markdown
+    assert result.run_manifest is not None
+    assert "discounted_cash_flow" in result.run_manifest.tools_selected
 
 
 def test_session_ids_are_unique() -> None:
     assert new_session_id() != new_session_id()
+
+
+def test_detailed_mode_replans_once_and_terminates() -> None:
+    plan = (
+        '{"selected_tools":["market_snapshot","financial_statements",'
+        '"sec_company_facts","recent_news"],"purposes":{}}'
+    )
+    llm = FakeListChatModel(
+        responses=[
+            plan,
+            plan,
+            "## Research Conclusion\nEvidence remains partial.\n"
+            "## Risk Factors\n- Official facts are unavailable.\n"
+            "## Assumptions\n- Provider evidence is labelled.",
+        ]
+    )
+    graph = build_research_graph(
+        llm=llm,
+        settings=AppSettings(_env_file=None),
+        tools=_mock_tools(),
+    )
+    result = run_research(
+        graph,
+        ResearchRequest(
+            query="Detailed analysis of MSFT.",
+            ticker="MSFT",
+            analysis_depth="Detailed",
+        ),
+    )
+    assert result.research_plan is not None
+    assert result.research_plan.revision_count == 1
+    assert result.run_manifest is not None
+    assert len(result.run_manifest.tool_calls) <= result.research_plan.maximum_tool_budget
 
 
 def test_current_date_is_dynamic() -> None:

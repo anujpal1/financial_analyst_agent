@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from financial_analyst.models import (
     Availability,
+    CalculationRecord,
     Claim,
     ConfidenceCategory,
     ConsistencyValidation,
@@ -117,15 +118,35 @@ def build_claims(
     dashboard: ExecutiveDashboard,
     history: HistoricalAnalysis,
     evidence: list[EvidenceRef],
+    calculations: list[CalculationRecord] | None = None,
 ) -> list[Claim]:
     """Build major factual claims only from structured metrics and attach evidence IDs."""
 
     claims: list[Claim] = []
+    calculation_by_id = {item.calculation_id: item for item in (calculations or [])}
     evidence_by_metric: dict[str, list[EvidenceRef]] = {}
     for item in evidence:
         if item.metric:
             evidence_by_metric.setdefault(item.metric, []).append(item)
     for metric in dashboard.metrics:
+        if metric.key not in {
+            "price",
+            "market_timestamp",
+            "market_cap",
+            "revenue",
+            "revenue_growth",
+            "net_income",
+            "operating_cash_flow",
+            "free_cash_flow",
+            "fcf_margin",
+            "cash",
+            "debt",
+            "net_cash",
+            "diluted_shares",
+            "dcf_base",
+            "upside",
+        }:
+            continue
         if (
             metric.status not in _USABLE
             or metric.value is None
@@ -141,20 +162,7 @@ def build_claims(
             for item in evidence_by_metric.get(evidence_metric, [])
             if not metric.period or not item.period_end or item.period_end == metric.period
         ]
-        calculation_id = (
-            f"calc-{metric.key}"
-            if (metric.source or "").startswith("Deterministic")
-            or metric.key
-            in {
-                "revenue_growth",
-                "fcf_margin",
-                "net_cash",
-                "dcf_range",
-                "upside",
-                "completeness",
-            }
-            else None
-        )
+        calculation_id = f"calc-{metric.key}" if f"calc-{metric.key}" in calculation_by_id else None
         status = (
             SupportStatus.VERIFIED if evidence_ids or calculation_id else SupportStatus.UNSUPPORTED
         )
@@ -164,7 +172,13 @@ def build_claims(
                 text=f"{metric.label}: {metric.formatted_value}",
                 category="dashboard",
                 evidence_ids=evidence_ids,
+                metric_references=[metric.key],
                 calculation_id=calculation_id,
+                calculation_input_ids=(
+                    calculation_by_id[calculation_id].input_source_ids if calculation_id else []
+                ),
+                displayed_value=metric.value,
+                period=metric.period,
                 support_status=status,
                 confidence_category=(
                     ConfidenceCategory.HIGH
@@ -187,7 +201,7 @@ def build_claims(
                 text=observation,
                 category="historical_trend",
                 evidence_ids=statement_ids,
-                calculation_id=f"calc-trend-{index}",
+                calculation_id=None,
                 support_status=(
                     SupportStatus.VERIFIED if statement_ids else SupportStatus.UNSUPPORTED
                 ),
@@ -202,30 +216,63 @@ def build_claims(
 def verify_claims(
     claims: list[Claim],
     evidence: list[EvidenceRef],
+    calculations: list[CalculationRecord] | None = None,
 ) -> list[Claim]:
-    """Re-evaluate support and conflicts using only known evidence identifiers."""
+    """Verify evidence and recomputed calculation lineage for structured claims."""
 
     by_id = {item.evidence_id: item for item in evidence}
+    calculation_by_id = {item.calculation_id: item for item in (calculations or [])}
     verified: list[Claim] = []
     for claim in claims:
         refs = [by_id[item] for item in claim.evidence_ids if item in by_id]
         conflict = any(ref.evidence_status is Availability.CONFLICT for ref in refs)
         missing_ref = any(item not in by_id for item in claim.evidence_ids)
+        calculation = calculation_by_id.get(claim.calculation_id) if claim.calculation_id else None
+        calculation_valid = bool(calculation and calculation.status is SupportStatus.VERIFIED)
+        period_valid = not calculation or not claim.period or calculation.period == claim.period
+        currency_valid = (
+            not calculation
+            or not claim.currency
+            or not calculation.currency
+            or calculation.currency == claim.currency
+        )
+        displayed_valid = (
+            not calculation
+            or not isinstance(claim.displayed_value, Real)
+            or abs(float(claim.displayed_value) - calculation.output)
+            <= max(1e-9, abs(calculation.output) * 1e-8)
+        )
         if conflict:
             support = SupportStatus.CONFLICTING
             confidence = ConfidenceCategory.LOW
-        elif refs or claim.calculation_id:
+            reason = "Referenced evidence is explicitly conflicting."
+        elif claim.calculation_id and not calculation_valid:
+            support = SupportStatus.UNSUPPORTED
+            confidence = ConfidenceCategory.INSUFFICIENT
+            reason = "Calculation lineage is missing or failed recomputation."
+        elif not period_valid or not currency_valid or not displayed_valid:
+            support = SupportStatus.UNSUPPORTED
+            confidence = ConfidenceCategory.INSUFFICIENT
+            reason = "Calculation period, currency, or displayed output does not match."
+        elif refs or calculation_valid:
             support = SupportStatus.PARTIALLY_SUPPORTED if missing_ref else SupportStatus.VERIFIED
             confidence = ConfidenceCategory.MODERATE if missing_ref else ConfidenceCategory.HIGH
+            reason = (
+                "Evidence identifiers resolve and calculation output was recomputed."
+                if calculation_valid
+                else "Evidence identifiers resolve."
+            )
         else:
             support = SupportStatus.UNSUPPORTED
             confidence = ConfidenceCategory.INSUFFICIENT
+            reason = "No resolvable evidence or verified calculation lineage."
         verified.append(
             claim.model_copy(
                 update={
                     "support_status": support,
                     "conflict_status": conflict,
                     "confidence_category": confidence,
+                    "verification_reason": reason,
                 }
             )
         )
@@ -295,9 +342,39 @@ def validate_report(
             )
     else:
         passed.append("DCF references are backed by a successful deterministic calculation.")
+        method = dcf.values.get("method")
+        if method != "FCFE":
+            blocking.append(
+                ValidationIssue(
+                    code="invalid_dcf_method",
+                    message="The valuation result does not identify the supported FCFE method.",
+                    blocking=True,
+                )
+            )
+        elif re.search(r"(?i)\benterprise value\b", report):
+            blocking.append(
+                ValidationIssue(
+                    code="fcfe_enterprise_bridge_confusion",
+                    message="An FCFE report must not present an enterprise-value bridge.",
+                    blocking=True,
+                )
+            )
+        elif re.search(r"(?i)\bFCFF\b|\bWACC\b", report):
+            blocking.append(
+                ValidationIssue(
+                    code="fcfe_fcff_label_conflict",
+                    message="The report mixes FCFE output with FCFF or WACC terminology.",
+                    blocking=True,
+                )
+            )
+        else:
+            passed.append("DCF method and FCFE labels are internally consistent.")
 
     unsupported = [
-        claim.claim_id for claim in claims if claim.support_status is SupportStatus.UNSUPPORTED
+        claim.claim_id
+        for claim in claims
+        if claim.support_status is SupportStatus.UNSUPPORTED
+        and claim.category != "removed_interpretation"
     ]
     if unsupported:
         blocking.append(
@@ -365,6 +442,17 @@ def validate_report(
         )
     else:
         passed.append("The research conclusion appears once.")
+
+    if report.count("## Disclaimer") > 1:
+        blocking.append(
+            ValidationIssue(
+                code="duplicated_disclaimer",
+                message="The financial disclaimer is duplicated.",
+                blocking=True,
+            )
+        )
+    else:
+        passed.append("The financial disclaimer is not duplicated.")
 
     recommendations = _RECOMMENDATION.findall(report)
     if recommendations:
@@ -457,6 +545,18 @@ def validate_report(
         )
     else:
         passed.append("No unexplained currency mixing was detected.")
+
+    stale_sources = [item for item in data if item.status is Availability.STALE]
+    if stale_sources and re.search(r"(?i)\b(?:real[- ]?time|live price)\b", report):
+        blocking.append(
+            ValidationIssue(
+                code="stale_described_as_live",
+                message="Stale source data is described as live or real-time.",
+                blocking=True,
+            )
+        )
+    else:
+        passed.append("Stale data is not described as real-time.")
 
     report_complete = not blocking
     return ConsistencyValidation(

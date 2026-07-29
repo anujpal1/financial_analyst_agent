@@ -58,7 +58,6 @@ class AppSettings(BaseSettings):
     retry_count: int = Field(default=2, ge=0, le=5)
     upload_size_limit_mb: int = Field(default=10, ge=1, le=50)
     cache_directory: Path = PROJECT_ROOT / ".cache"
-    report_directory: Path = PROJECT_ROOT / "reports"
 
 
 class ProviderConfig(BaseModel):

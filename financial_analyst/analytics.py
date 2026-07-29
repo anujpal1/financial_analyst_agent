@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from itertools import pairwise
 from numbers import Real
 from typing import Any
@@ -26,6 +26,7 @@ from financial_analyst.models import (
 )
 
 _USABLE = {Availability.AVAILABLE, Availability.PARTIAL, Availability.STALE}
+
 _NOT_SCORED = "Not scored — insufficient data"
 
 
@@ -45,7 +46,14 @@ def build_historical_analysis(statements: DataResult | None) -> HistoricalAnalys
                 **{
                     field: statements.values.get(field)
                     for field in AnnualFinancialPeriod.model_fields
-                    if field not in {"period_end", "fiscal_year"}
+                    if field
+                    not in {
+                        "period_end",
+                        "fiscal_year",
+                        "definitions",
+                        "source_by_metric",
+                        "evidence_by_metric",
+                    }
                 },
             )
         ]
@@ -72,7 +80,12 @@ def revenue_cagr(history: HistoricalAnalysis) -> float | None:
     if len(values) < 2:
         return None
     first, last = values[0][1], values[-1][1]
-    years = len(values) - 1
+    try:
+        years = (
+            date.fromisoformat(values[-1][0]) - date.fromisoformat(values[0][0])
+        ).days / 365.2425
+    except ValueError:
+        years = len(values) - 1
     if first is None or last is None or years <= 0:
         return None
     return (last / first) ** (1 / years) - 1
@@ -85,7 +98,7 @@ def build_scorecard(
     """Score six documented components; missing inputs never receive neutral points."""
 
     by_name = {item.name: item for item in data}
-    statements = by_name.get("financial_statements")
+    statements = by_name.get("canonical_financials") or by_name.get("financial_statements")
     market = by_name.get("market_snapshot")
     dcf = by_name.get("discounted_cash_flow")
     latest = history.periods[-1] if history.periods else None
@@ -193,7 +206,7 @@ def build_data_quality(data: list[DataResult]) -> list[DataQualityRow]:
     market = by_name.get("market_snapshot")
     rows.append(_quality_row("Market data", market, period_key="trading_date"))
 
-    statements = by_name.get("financial_statements")
+    statements = by_name.get("canonical_financials") or by_name.get("financial_statements")
     dataset_statuses = statements.values.get("dataset_statuses", {}) if statements else {}
     for dataset, label, period_key in (
         ("annual_income_statement", "Annual financials", "income_period_end"),
@@ -210,6 +223,11 @@ def build_data_quality(data: list[DataResult]) -> list[DataQualityRow]:
         )
     rows.extend(
         [
+            _quality_row(
+                "Canonical reconciled financials",
+                by_name.get("canonical_financials"),
+                period_key="income_period_end",
+            ),
             _quality_row("SEC filing facts", by_name.get("sec_company_facts")),
             _quality_row("Company news", by_name.get("recent_news")),
             _quality_row("Uploaded PDF", by_name.get("uploaded_documents")),
@@ -228,7 +246,7 @@ def build_dashboard(
 
     by_name = {item.name: item for item in data}
     market = by_name.get("market_snapshot")
-    statements = by_name.get("financial_statements")
+    statements = by_name.get("canonical_financials") or by_name.get("financial_statements")
     dcf = by_name.get("discounted_cash_flow")
     mv = market.values if market else {}
     sv = statements.values if statements else {}

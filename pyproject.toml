@@ -1,7 +1,7 @@
 [project]
 name = "financial-analyst-agent"
-version = "2.0.0"
-description = "Local evidence-grounded financial research with deterministic analytics."
+version = "3.0.0"
+description = "Agentic evidence-grounded financial research with deterministic analytics."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -23,6 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.3,<10",
+    "pytest-cov>=6,<8",
     "ruff>=0.11,<1",
 ]
 

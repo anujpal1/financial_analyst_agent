@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import requests
 from pydantic import SecretStr
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-from financial_analyst.models import Availability, DataResult, EvidenceRef
+from financial_analyst.models import Availability, DataResult, EvidenceRef, utc_now
 from financial_analyst.security import safe_error_message
 
 
@@ -19,14 +22,22 @@ class FMPTranscriptClient:
         *,
         api_key: SecretStr | None,
         timeout: float,
+        retry_count: int = 2,
+        cache_ttl_seconds: float = 900.0,
         session: requests.Session | None = None,
     ) -> None:
         self.api_key = api_key
         self.timeout = timeout
-        self.session = session or requests.Session()
+        self.session = session or _retrying_session(retry_count)
+        self.cache_ttl_seconds = cache_ttl_seconds
+        self._cache: dict[tuple[str, int, int], tuple[float, DataResult]] = {}
 
     def fetch(self, ticker: str, year: int, quarter: int) -> DataResult:
         source = "Financial Modeling Prep earnings-call transcript"
+        cache_key = (ticker.upper(), year, quarter)
+        cached = self._cache.get(cache_key)
+        if cached and time.monotonic() - cached[0] < self.cache_ttl_seconds:
+            return cached[1].model_copy(deep=True)
         if quarter not in {1, 2, 3, 4}:
             return DataResult.unavailable(
                 name="earnings_transcript",
@@ -82,7 +93,7 @@ class FMPTranscriptClient:
                     content_type="transcript",
                 )
             truncated = len(transcript) > 50_000
-            return DataResult(
+            result = DataResult(
                 name="earnings_transcript",
                 status=Availability.PARTIAL if truncated else Availability.AVAILABLE,
                 source=source,
@@ -92,10 +103,13 @@ class FMPTranscriptClient:
                     "quarter": quarter,
                     "text": transcript[:50_000],
                     "truncated_for_analysis": truncated,
+                    "retrieval_timestamp": utc_now().isoformat(),
                 },
                 evidence=[
                     EvidenceRef(
                         source=source,
+                        source_type="management_transcript",
+                        provider="Financial Modeling Prep",
                         url=endpoint,
                         fiscal_year=year,
                         fiscal_period=f"Q{quarter}",
@@ -103,6 +117,8 @@ class FMPTranscriptClient:
                 ],
                 content_type="transcript",
             )
+            self._cache[cache_key] = (time.monotonic(), result)
+            return result.model_copy(deep=True)
         except (requests.RequestException, ValueError, TypeError) as error:
             return DataResult.unavailable(
                 name="earnings_transcript",
@@ -114,3 +130,19 @@ class FMPTranscriptClient:
                 ),
                 content_type="transcript",
             )
+
+
+def _retrying_session(retry_count: int) -> requests.Session:
+    retry = Retry(
+        total=retry_count,
+        connect=retry_count,
+        read=retry_count,
+        status=retry_count,
+        backoff_factor=0.4,
+        status_forcelist=(429, 500, 502, 503, 504),
+        allowed_methods=frozenset({"GET"}),
+        raise_on_status=False,
+    )
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    return session

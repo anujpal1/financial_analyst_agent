@@ -9,9 +9,12 @@ from financial_analyst.config import AppSettings, LLMProvider, ProviderConfig
 from financial_analyst.llm import (
     ProviderConfigurationError,
     create_chat_model,
-    validate_tool_calling,
+    create_research_plan,
+    provider_capabilities,
 )
 from financial_analyst.llm import test_connection as run_connection_test
+from financial_analyst.models import AnalysisDepth, ResearchRequest
+from financial_analyst.tools import build_tool_registry
 
 
 class FakeModel:
@@ -132,11 +135,51 @@ def test_provider_exception_does_not_leak_key(
     assert "[REDACTED]" in str(captured.value)
 
 
-def test_tool_compatibility_and_connection_probe() -> None:
+def test_connection_probe_and_provider_capabilities() -> None:
     model = FakeModel()
-    validate_tool_calling(model)
-    assert model.bound_tools[0].name == "connection_probe"
     assert run_connection_test(model) == "Connection successful."
+    cloud = provider_capabilities(LLMProvider.OPENAI)
+    local = provider_capabilities(LLMProvider.OLLAMA)
+    assert cloud.supports_native_tools
+    assert cloud.api_key_required
+    assert local.local
+    assert not local.api_key_required
+
+
+def test_structured_planner_selects_allowlisted_tools() -> None:
+    class PlannerModel(FakeModel):
+        def bind_tools(self, tools: list[Any]) -> Any:
+            raise NotImplementedError
+
+        def invoke(self, messages: list[Any]) -> Any:
+            return type(
+                "Response",
+                (),
+                {
+                    "content": (
+                        '{"selected_tools":["market_snapshot","financial_statements"],'
+                        '"purposes":{"market_snapshot":"price"},'
+                        '"requested_outputs":["dashboard"],"required_metrics":["price"],'
+                        '"required_periods":["latest"],"expected_evidence":["market"]}'
+                    )
+                },
+            )()
+
+    plan = create_research_plan(
+        PlannerModel(),
+        ResearchRequest(
+            query="Analyze MSFT.",
+            ticker="MSFT",
+            analysis_depth=AnalysisDepth.QUICK,
+        ),
+        "MSFT",
+        build_tool_registry(AppSettings(_env_file=None)),
+    )
+    assert plan.planning_method == "structured_json"
+    assert [step.tool_name for step in plan.steps] == [
+        "market_snapshot",
+        "financial_statements",
+    ]
 
 
 def test_current_gemini_model_omits_deprecated_temperature(

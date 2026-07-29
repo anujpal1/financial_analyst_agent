@@ -53,7 +53,20 @@ def test_streamlit_application_smoke() -> None:
     app.run()
     assert not app.exception
     assert any(
-        "Evidence-Grounded Financial Research Workbench" in element.value
+        "Agentic Evidence-Grounded Financial Research Workbench" in element.value
         for element in app.markdown
     )
     assert len(app.button) >= 2
+
+
+def test_streamlit_reset_removes_session_keys() -> None:
+    app_path = Path(__file__).parents[1] / "app.py"
+    app = AppTest.from_file(str(app_path), default_timeout=20).run()
+    key_input = next(item for item in app.text_input if item.label == "OpenAI API key")
+    key_input.input("session-only-secret").run()
+    assert app.session_state["session_key_OpenAI"] == "session-only-secret"
+
+    reset = next(item for item in app.button if item.label == "Clear / reset session")
+    reset.click().run()
+    assert app.session_state["session_key_OpenAI"] == ""
+    assert app.session_state["result"] is None
