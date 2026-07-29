@@ -6,6 +6,10 @@ import re
 
 _TICKER_PATTERN = re.compile(r"^[A-Z][A-Z0-9.-]{0,9}$")
 _QUERY_TICKER_PATTERN = re.compile(r"(?<![A-Za-z0-9])\$?([A-Z]{1,5}(?:[.-][A-Z])?)(?![A-Za-z0-9])")
+_EXCHANGE_TICKER_PATTERN = re.compile(
+    r"\b(?:NYSE|NASDAQ|AMEX|LSE|TSX)\s*:\s*\$?([A-Z][A-Z0-9.-]{0,9})\b",
+    re.IGNORECASE,
+)
 _COMMON_COMPANIES = {
     "alphabet": "GOOGL",
     "amazon": "AMZN",
@@ -39,6 +43,9 @@ def resolve_ticker(query: str, explicit_ticker: str | None = None) -> str:
         return normalize_ticker(explicit_ticker)
 
     lower_query = query.lower()
+    exchange_match = _EXCHANGE_TICKER_PATTERN.search(query)
+    if exchange_match:
+        return normalize_ticker(exchange_match.group(1))
     known_ticker_matches = [
         ticker
         for ticker in dict.fromkeys(_COMMON_COMPANIES.values())

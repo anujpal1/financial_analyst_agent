@@ -8,7 +8,7 @@ from typing import Any
 from langchain_core.tools import BaseTool, StructuredTool
 
 from financial_analyst.config import AppSettings
-from financial_analyst.market import YFinanceClient, peer_comparison_unavailable
+from financial_analyst.market import YFinanceClient
 from financial_analyst.models import Availability, DataResult
 from financial_analyst.sec import SECClient
 from financial_analyst.transcripts import FMPTranscriptClient
@@ -47,24 +47,14 @@ def build_tool_registry(
             description="Retrieve annual income, cash-flow, and balance-sheet observations.",
         ),
         StructuredTool.from_function(
-            func=market.price_history,
-            name="price_history",
-            description="Retrieve six months of daily close prices for charting.",
-        ),
-        StructuredTool.from_function(
             func=market.recent_news,
             name="recent_news",
-            description="Retrieve recent articles labelled explicitly as news.",
+            description="Retrieve relevant, deduplicated company news labelled explicitly as news.",
         ),
         StructuredTool.from_function(
             func=sec.company_facts,
             name="sec_company_facts",
             description="Retrieve official SEC Company Facts with filing metadata.",
-        ),
-        StructuredTool.from_function(
-            func=peer_comparison_unavailable,
-            name="peer_comparison",
-            description="Return peer availability without substituting an ETF.",
         ),
         StructuredTool.from_function(
             func=transcripts.fetch,
@@ -106,12 +96,25 @@ def run_dcf_tool(
 ) -> DataResult:
     """Calculate DCF scenarios, refusing to invent a missing base cash flow."""
 
-    if base_free_cash_flow is None:
+    required = {
+        "base_free_cash_flow": base_free_cash_flow,
+        "cash": cash,
+        "debt": debt,
+        "diluted_shares": diluted_shares,
+    }
+    missing = [name for name, value in required.items() if value is None]
+    if missing:
+        readable_missing = ", ".join(name.replace("_", " ") for name in missing)
+        reason = (
+            f"base free cash flow is missing; essential inputs missing: {readable_missing}"
+            if base_free_cash_flow is None
+            else f"essential inputs are missing: {readable_missing}"
+        )
         return DataResult.unavailable(
             name="discounted_cash_flow",
             source="Deterministic DCF calculation",
-            message="DCF unavailable because base free cash flow is missing.",
-            missing_fields=["base_free_cash_flow"],
+            message=f"DCF unavailable because {reason}.",
+            missing_fields=missing,
             content_type="valuation",
         )
     try:
@@ -128,11 +131,21 @@ def run_dcf_tool(
         )
         result = calculate_dcf(inputs)
         status = Availability.PARTIAL if result.warnings else Availability.AVAILABLE
+        values = result.model_dump(mode="json")
+        values["inputs"] = {
+            "growth_rate": growth_rate,
+            "discount_rate": discount_rate,
+            "terminal_growth_rate": terminal_growth_rate,
+            "projection_years": inputs.projection_years,
+            "cash": cash,
+            "debt": debt,
+            "diluted_shares": diluted_shares,
+        }
         return DataResult(
             name="discounted_cash_flow",
             status=status,
             source="Deterministic DCF calculation",
-            values=result.model_dump(mode="json"),
+            values=values,
             message="; ".join(result.warnings) if result.warnings else None,
             missing_fields=_valuation_missing_fields(
                 cash=cash,

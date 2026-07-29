@@ -200,7 +200,14 @@ def _parse_company_facts(
             if entry is None:
                 continue
             fact_value[period_type] = _entry_value(entry)
-            evidence.append(_entry_evidence(entry, source_url, unit))
+            evidence.append(
+                _entry_evidence(
+                    entry,
+                    source_url,
+                    unit,
+                    metric=display_name,
+                )
+            )
         if len(fact_value) == 2:
             missing.append(f"{display_name}_filing_context")
         values[display_name] = fact_value
@@ -242,9 +249,18 @@ def _entry_value(entry: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _entry_evidence(entry: Mapping[str, Any], source_url: str, unit: str | None) -> EvidenceRef:
+def _entry_evidence(
+    entry: Mapping[str, Any],
+    source_url: str,
+    unit: str | None,
+    *,
+    metric: str,
+) -> EvidenceRef:
     return EvidenceRef(
         source="SEC EDGAR Company Facts",
+        source_type="official_filing_fact",
+        provider="SEC EDGAR",
+        title=f"SEC Company Fact: {metric.replace('_', ' ').title()}",
         url=source_url,
         form=entry.get("form"),
         filing_date=entry.get("filed"),
@@ -254,4 +270,6 @@ def _entry_evidence(entry: Mapping[str, Any], source_url: str, unit: str | None)
         fiscal_period=entry.get("fp"),
         accession_number=entry.get("accn"),
         unit=unit,
+        metric=metric,
+        value=entry.get("val"),
     )

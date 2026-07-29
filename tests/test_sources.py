@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pandas as pd
 import pytest
 from pydantic import SecretStr
 
-from financial_analyst.market import YFinanceClient, peer_comparison_unavailable
+from financial_analyst.market import YFinanceClient
 from financial_analyst.models import Availability
 from financial_analyst.sec import SECClient
 from financial_analyst.transcripts import FMPTranscriptClient
@@ -117,7 +117,8 @@ def test_missing_market_data_is_structured(
     monkeypatch.setattr("financial_analyst.market.yf.Ticker", lambda ticker: EmptyTicker())
     result = YFinanceClient().market_snapshot("NONE")
     assert result.status is Availability.UNAVAILABLE
-    assert result.values == {}
+    assert result.values["price"] is None
+    assert result.values["status"] == Availability.UNAVAILABLE.value
 
 
 def test_market_snapshot_uses_latest_daily_bar_when_fast_quote_is_missing(
@@ -143,15 +144,55 @@ def test_market_snapshot_uses_latest_daily_bar_when_fast_quote_is_missing(
     result = YFinanceClient().market_snapshot("MSFT")
     assert result.status is Availability.PARTIAL
     assert result.values["price"] == 101.0
-    assert result.values["price_basis"] == "latest daily bar"
-    assert result.values["price_as_of"] == "2026-07-28"
+    assert result.values["price_basis"] == "latest daily close"
+    assert result.values["trading_date"] == "2026-07-28"
 
 
-def test_peer_comparison_never_uses_etf_fallback() -> None:
-    result = peer_comparison_unavailable("UNKNOWN")
-    assert result.status is Availability.UNAVAILABLE
-    assert "ETF" in result.message
-    assert "SPY" not in result.model_dump_json()
+def test_financial_statements_align_annual_periods_and_derive_fcf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    columns = pd.to_datetime(["2024-12-31", "2023-12-31", "2022-12-31"])
+
+    class StatementTicker:
+        info: ClassVar[dict[str, str]] = {
+            "financialCurrency": "USD",
+            "longName": "Fixture Company",
+        }
+        income_stmt: ClassVar[pd.DataFrame] = pd.DataFrame(
+            {
+                columns[0]: [121.0, 16.0, 10.4],
+                columns[1]: [110.0, 13.0, 10.2],
+                columns[2]: [100.0, 10.0, 10.0],
+            },
+            index=["Total Revenue", "Net Income", "Diluted Average Shares"],
+        )
+        cashflow: ClassVar[pd.DataFrame] = pd.DataFrame(
+            {
+                columns[0]: [25.0, -5.0],
+                columns[1]: [21.0, -4.0],
+                columns[2]: [18.0, -3.0],
+            },
+            index=["Operating Cash Flow", "Capital Expenditure"],
+        )
+        balance_sheet: ClassVar[pd.DataFrame] = pd.DataFrame(
+            {
+                columns[0]: [32.0, 22.0],
+                columns[1]: [24.0, 27.0],
+                columns[2]: [20.0, 30.0],
+            },
+            index=["Cash And Cash Equivalents", "Total Debt"],
+        )
+
+    monkeypatch.setattr("financial_analyst.market.yf.Ticker", lambda ticker: StatementTicker())
+    result = YFinanceClient().financial_statements("MSFT")
+    periods = result.values["annual_periods"]
+    assert [period["period_end"] for period in periods] == [
+        "2024-12-31",
+        "2023-12-31",
+        "2022-12-31",
+    ]
+    assert periods[0]["free_cash_flow"] == 20.0
+    assert periods[2]["cash"] == 20.0
 
 
 def test_transcript_unavailable_is_labelled_as_transcript() -> None:

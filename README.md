@@ -1,71 +1,97 @@
-# Evidence-Aware Financial Research
+# Evidence-Grounded Financial Research Workbench
 
-Evidence-Aware Financial Research is a local Streamlit application for investigating a
-public-company ticker with provider-labelled market data, official SEC filing facts,
-transparent valuation scenarios, optional PDF evidence, and a user-selected language
-model. Financial values are collected and calculated deterministically; the language
-model is limited to qualitative synthesis and is instructed not to invent facts,
-recommendations, citations, or confidence percentages.
+A local Streamlit application for auditable public-company research. It combines
+provider-labelled market and statement data, SEC filing facts, deterministic historical
+analytics, transparent DCF scenarios, claim-level evidence, a consistency gate, optional
+PDF evidence, and qualitative synthesis from a user-selected language model.
 
-## Key features
+Financial values, ratios, trend observations, scorecards, and valuation comparisons are
+calculated in code. The language model does not populate numeric dashboard fields and is
+not allowed to invent facts, citations, recommendations, or confidence percentages.
 
-- Select OpenAI, Google Gemini, Anthropic, or a local Ollama model in the UI.
-- Paste a cloud API key into a password field for the current session, or use an
-  environment variable.
-- Use Ollama without an API key.
-- Retrieve market snapshots, statements, price history, and labelled news through
-  `yfinance`.
-- Retrieve annual and quarterly facts from SEC EDGAR with filing metadata.
-- Run bear, base, and bull discounted-cash-flow scenarios only when real base free cash
-  flow is available.
-- Upload a PDF safely in memory, extract every page, and preserve page numbers in
-  evidence.
-- Produce a stable Markdown report and download it from the application.
-- Continue with clearly labelled gaps when SEC, news, transcript, or optional-provider
-  data is unavailable.
-- Run a fully offline automated test suite with mocked provider and financial sources.
+## Main features
 
-## Supported LLM providers
+- OpenAI, Google Gemini, Anthropic, and local Ollama support through one research
+  workflow.
+- Session-only password inputs for cloud keys; page load makes no paid provider call.
+- One canonical yfinance market object for price, trading date, timestamp, market state,
+  previous close, market capitalisation, and six-month price history.
+- Up to five aligned annual periods for revenue, income, cash flow, capital expenditure,
+  free cash flow, cash, debt, and diluted shares.
+- An executive dashboard sourced only from validated structured data.
+- Deterministic annual growth, CAGR, margins, cash/debt, and share-count observations.
+- A transparent six-component financial scorecard with visible rules and calculation
+  traces. Missing inputs are labelled `Not scored — insufficient data`.
+- Bear, base, and bull DCF scenarios plus a discount-rate / terminal-growth sensitivity
+  table. Missing essential inputs stop the public valuation tool.
+- Claim-to-evidence links for market, statement, filing, calculation, transcript, and
+  uploaded-document evidence.
+- A deterministic consistency validator with pass, warning, and blocking outcomes; one
+  controlled report retry; and an explicit partial-report fallback.
+- Dataset-specific source records, URL/title/accession deduplication, and a data-quality
+  panel.
+- Deterministic news relevance filters with company-signal requirements and duplicate
+  removal. News is never represented as a transcript.
+- Full-document, in-memory PDF extraction with filename sanitization, upload limits,
+  page metadata, and untrusted-content handling.
+- Downloadable Markdown research reports and a fully offline mocked test/evaluation
+  suite.
 
-| Provider | LangChain package | Credential |
+The workbench intentionally does not implement peer comparison, portfolio management,
+automated trading, broker integration, crypto analysis, social-media sentiment, or
+investment commands.
+
+## Supported providers
+
+| Provider | Package | Credential |
 | --- | --- | --- |
-| OpenAI | `langchain-openai` | `OPENAI_API_KEY` or UI key |
-| Google Gemini | `langchain-google-genai` | `GOOGLE_API_KEY` or UI key |
-| Anthropic | `langchain-anthropic` | `ANTHROPIC_API_KEY` or UI key |
+| OpenAI | `langchain-openai` | UI key or `OPENAI_API_KEY` |
+| Google Gemini | `langchain-google-genai` | UI key or `GOOGLE_API_KEY` |
+| Anthropic | `langchain-anthropic` | UI key or `ANTHROPIC_API_KEY` |
 | Ollama | `langchain-ollama` | No API key |
 
-The UI includes practical model choices and a custom-model field because model
-availability differs by account and changes over time. Some current reasoning models
-ignore or reject sampling controls; the provider factory omits temperature for those
-known model families while retaining the requested value for compatible models.
+The UI offers suggested models and a custom-model field because account availability
+changes over time. Known reasoning-model families that do not accept temperature are
+called without that parameter.
 
-Provider documentation:
+## Research pipeline
 
-- [OpenAI models](https://platform.openai.com/docs/models)
-- [Gemini models](https://ai.google.dev/gemini-api/docs/models)
-- [Anthropic model IDs](https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions)
-- [Ollama model library](https://ollama.com/library)
-
-## Architecture overview
-
-The application uses one provider-independent LangGraph workflow:
-
-1. Validate the question and resolve one ticker.
-2. Invoke deterministic tools from one canonical registry.
-3. Collect typed `DataResult` objects from yfinance, SEC EDGAR, optional transcript
-   access, and uploaded-document retrieval.
-4. Run DCF scenarios only when the request asks for valuation and real free cash flow
-   exists.
-5. Compare like-period SEC and provider facts and report material conflicts without
-   averaging them.
-6. Render all numeric sections deterministically.
-7. Ask the selected chat model for constrained qualitative conclusions, risks, and
+1. Validate the question and deterministically resolve one ticker.
+2. Collect a canonical market snapshot, aligned annual statements, and optional SEC,
+   news, transcript, and uploaded-PDF evidence.
+3. Compare like-period provider and SEC facts without averaging disagreements.
+4. Calculate historical trends, dashboard metrics, score components, DCF scenarios, and
+   evidence coverage locally.
+5. Build dataset-specific source records and claim-level evidence links.
+6. Ask the selected model only for constrained qualitative conclusions, risks, and
    assumptions.
-8. Apply final report guardrails and attach evidence quality plus the disclaimer.
+7. Assemble the deterministic report and run consistency validation.
+8. If blocked, retry synthesis once; if the issue remains, return a clearly labelled
+   partial report.
 
-The graph receives a common LangChain chat-model interface from
-`financial_analyst/llm.py`. Provider changes do not change graph code. There is no
-persistent chat or vector memory; each Streamlit session has a unique identifier.
+Quick analysis skips company news. Standard and Detailed analysis collect relevant news;
+Detailed uses the same verified source pipeline and fuller report surface. A refresh is
+an explicit rerun and creates new per-analysis source clients. API keys and provider
+clients are never cached.
+
+## Interface
+
+The restrained finance-style interface includes:
+
+- A compact header with provider status, data timestamp, and disclaimer.
+- Grouped LLM, optional-source, analysis, and session controls.
+- Research question, ticker, PDF, analysis-depth, and DCF input controls.
+- Overview, Financials, Valuation, Evidence, Sources, and Full report tabs.
+- Structured metric cards, canonical price history, annual financial charts, score
+  traces, DCF sensitivity, claim evidence, validation details, and data-quality rows.
+
+Screenshot placeholders:
+
+- `docs/screenshots/workbench-overview.png` — executive dashboard and data quality.
+- `docs/screenshots/workbench-financials.png` — annual trends and scorecard.
+- `docs/screenshots/workbench-evidence.png` — claims, sources, and validation.
+
+These are placeholders only; no generated screenshots are committed.
 
 ## Project structure
 
@@ -77,8 +103,10 @@ persistent chat or vector memory; each Streamlit session has a unique identifier
 ├── app.py
 ├── financial_analyst/
 │   ├── __init__.py
+│   ├── analytics.py
 │   ├── config.py
 │   ├── documents.py
+│   ├── evidence.py
 │   ├── llm.py
 │   ├── market.py
 │   ├── models.py
@@ -93,27 +121,34 @@ persistent chat or vector memory; each Streamlit session has a unique identifier
 ├── tests/
 │   ├── fixtures/
 │   ├── conftest.py
-│   └── test_*.py
+│   ├── test_config_and_llm.py
+│   ├── test_documents.py
+│   ├── test_evaluation_suite.py
+│   ├── test_security_and_smoke.py
+│   ├── test_sources.py
+│   ├── test_tickers.py
+│   ├── test_valuation.py
+│   └── test_workflow_and_reporting.py
 ├── pyproject.toml
 ├── README.md
 └── uv.lock
 ```
 
-`app.py` is the only application entry point. `pyproject.toml` is the canonical
-dependency and tool configuration. `uv.lock` records the resolved dependency set.
+`app.py` is the only UI entry point. `pyproject.toml` is the dependency and tool
+configuration source; `uv.lock` contains the resolved environment.
 
 ## Requirements
 
 - Windows 10 or later
-- Python 3.11, 3.12, or 3.13 (Python 3.11 is the documented default)
+- Python 3.11, 3.12, or 3.13
 - PowerShell
-- Internet access for cloud LLMs and live financial sources
-- Ollama only if using a local model
+- Internet access for live market/filing sources and cloud providers
+- Ollama only when using a local model
 
-The automated tests do not require internet access, provider keys, paid data APIs, or a
-running Ollama server.
+Automated tests and evaluations require no network, provider key, paid data service, or
+Ollama process. A test-level socket guard fails any accidental live connection.
 
-## Windows setup
+## Windows PowerShell setup
 
 From the project root:
 
@@ -124,31 +159,24 @@ python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-If PowerShell blocks activation for the current terminal:
+If activation is blocked for the current shell:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\.venv\Scripts\Activate.ps1
 ```
 
-## Provider setup
-
-### Ollama
-
-Install [Ollama](https://ollama.com/), then start the service and pull a model:
+With `uv`, the equivalent reproducible setup is:
 
 ```powershell
-ollama serve
-ollama pull llama3.1:8b
+uv sync --extra dev
 ```
 
-In a second PowerShell window, run the Streamlit application, select **Ollama**, confirm
-`http://localhost:11434`, choose the pulled model, and test the connection.
+## Provider setup
 
 ### OpenAI
 
-Select **OpenAI** and paste the API key into the password field. Alternatively, set it
-for the current PowerShell process:
+Select OpenAI and paste the key in the password field, or set it for the current shell:
 
 ```powershell
 $env:OPENAI_API_KEY = "your-key"
@@ -156,46 +184,48 @@ $env:OPENAI_API_KEY = "your-key"
 
 ### Google Gemini
 
-Select **Google Gemini** and paste the key, or set:
-
 ```powershell
 $env:GOOGLE_API_KEY = "your-key"
 ```
 
 ### Anthropic
 
-Select **Anthropic** and paste the key, or set:
-
 ```powershell
 $env:ANTHROPIC_API_KEY = "your-key"
 ```
 
-UI keys take precedence over environment variables. The application never writes a UI
-key to `.env` or another file.
+### Ollama
 
-## Optional financial-data configuration
-
-Core analysis uses yfinance and does not require a separate financial-data key.
-
-SEC EDGAR requires a descriptive User-Agent with contact information. Enter it under
-**Advanced data sources** or set:
+Start Ollama and pull a supported model:
 
 ```powershell
-$env:SEC_USER_AGENT = "FinancialAnalystAgent/1.0 you@example.com"
+ollama serve
+ollama pull llama3.1:8b
 ```
 
-Actual earnings-call transcript retrieval is an optional enhancement through Financial
-Modeling Prep:
+Then select Ollama and confirm the base URL, normally `http://localhost:11434`.
+
+### Optional data providers
+
+SEC EDGAR requires a descriptive User-Agent containing a contact email:
+
+```powershell
+$env:SEC_USER_AGENT = "FinancialResearch/1.0 you@example.com"
+```
+
+Actual earnings-call transcript retrieval is an optional Financial Modeling Prep
+enhancement:
 
 ```powershell
 $env:FMP_API_KEY = "your-key"
 ```
 
-Without that key, transcript requests return a labelled unavailable result. News is
-never presented as a transcript.
+Without a valid SEC User-Agent or FMP key, those datasets return clear unavailable
+statuses and the analysis continues where safe. Core market and statement collection
+uses yfinance.
 
-Users who prefer a local environment file may copy `.env.example` to `.env` and fill
-only the variables they intend to use. `.env` is ignored by Git. Do not commit it.
+You may copy `.env.example` to `.env` for local environment configuration. `.env` is
+ignored by Git. UI-entered keys take precedence and are not written to it.
 
 ## Run the application
 
@@ -204,86 +234,92 @@ only the variables they intend to use. `.env` is ignored by Git. Do not commit i
 streamlit run app.py
 ```
 
-Streamlit opens the local app in the browser. Page load does not initialize a model or
-make a paid provider call. A provider is contacted only after **Test connection** or
-**Run analysis** is selected.
+Initial page load only renders controls. A provider is contacted after **Test
+connection** or **Run analysis** is selected.
 
-## Use the application
+## Use the workbench
 
-1. Select an LLM provider.
-2. Select a suggested model or enable the custom-model field.
-3. Paste the cloud API key, or configure the Ollama base URL.
-4. Select **Test connection**.
+1. Select OpenAI, Google Gemini, Anthropic, or Ollama.
+2. Select a suggested model or enter a custom model name.
+3. Paste a cloud API key in the password field, or use Ollama locally.
+4. Test the connection.
 5. Enter a ticker and research question.
-6. Optionally upload a PDF and adjust DCF assumptions.
-7. Select **Run analysis**.
-8. Review the report, source metadata, missing-data notices, and chart.
-9. Download the Markdown report.
+6. Select Quick, Standard, or Detailed analysis.
+7. Optionally upload a PDF and adjust visible DCF assumptions.
+8. Run the analysis.
+9. Inspect dashboard, financial trends, valuation, evidence, sources, and validation.
+10. Download the full Markdown report.
 
-## Run tests and quality checks
+## Tests and quality checks
+
+Run the complete offline suite:
 
 ```powershell
 python -m pytest
+```
+
+Run the compact deterministic evaluation suite:
+
+```powershell
+python -m pytest tests\test_evaluation_suite.py
+```
+
+Run static and compilation checks:
+
+```powershell
 python -m ruff check .
 python -m ruff format --check .
 python -m compileall app.py financial_analyst tests
 ```
 
-Tests use stored SEC fixtures and mocks. A test-level network guard fails the suite if a
-test attempts a live socket connection.
+The evaluation suite covers ticker extraction, annual/quarterly separation, annual
+alignment, revenue growth, margins, net cash, scoring, DCF sensitivity, missing inputs,
+claim support, conflicts, canonical price reuse, source deduplication, news relevance,
+validation retry/fallback, and secret redaction. Results are reported as test outcomes;
+the project does not claim an unmeasured accuracy percentage.
 
 ## Security notes
 
-- Password inputs live only in Streamlit session state.
-- Resetting the session removes UI-entered credentials and the generated report.
-- API keys are not written to disk, reports, prompts shown to the user, or logs.
-- Displayed provider errors are redacted and length-bounded.
-- Local logs are bounded and contain event types, not uploaded text or full prompts.
-- PDFs are parsed from uploaded bytes; no LLM tool accepts a local filesystem path.
-- Uploaded filenames are sanitized, size-limited, and assigned opaque internal IDs.
-- Text inside an uploaded document is treated as untrusted evidence, not instructions.
-- The application has no shell-execution tool.
-- `.env`, caches, logs, reports, virtual environments, and generated databases are
-  excluded by `.gitignore`.
+- UI key fields use password inputs and remain in Streamlit session state only.
+- Resetting the session removes UI-entered credentials, uploads, results, and per-run
+  clients.
+- API keys are not placed in reports, prompts shown to the user, caches, or logs.
+- Provider error messages are redacted and length-bounded.
+- Local logs contain event types, not full prompts, keys, or uploaded text.
+- Source caches contain public response data only; API keys and provider clients are not
+  cached.
+- PDFs are parsed from uploaded bytes. No tool accepts an arbitrary local path.
+- Uploaded filenames are sanitized, size-limited, and assigned opaque IDs.
+- PDF text is untrusted evidence and cannot override system instructions.
+- The application has no shell, broker, trading, or persistent-memory tool.
+- `.env`, logs, reports, caches, virtual environments, archives, and generated outputs
+  are ignored.
 
-If a credential was ever committed in an older project revision, revoke it at the
-provider even after removing the file from the current tree. Git history still contains
-the older revision.
-
-## Data-source limitations
-
-- yfinance is a convenient third-party interface and can be delayed, incomplete, or
-  temporarily blocked. Its values are labelled as provider data.
-- SEC Company Facts coverage varies by issuer and taxonomy. The client preserves form,
-  filing date, fiscal context, unit, period, and accession metadata when present.
-- SEC access is disabled without a valid User-Agent.
-- DCF output is assumption-sensitive. Missing cash or debt suppresses equity value;
-  missing diluted shares suppresses per-share value.
-- News availability and publisher metadata vary.
-- FMP transcript availability depends on the optional key, provider coverage, and plan.
-- Text-only PDF extraction does not perform OCR on scanned documents.
-- The workflow analyzes one primary ticker per run.
+If a credential has ever appeared in version history, revoke it at the provider even
+after removing the current file.
 
 ## Financial disclaimer
 
 This software is for informational, educational, and portfolio-project use. It is not
 financial, investment, legal, accounting, or tax advice. Source data may be delayed,
-incomplete, or incorrect. Verify material facts in original filings and consult a
-qualified professional before making financial decisions.
+incomplete, or incorrect. DCF values are highly assumption-sensitive. Verify material
+facts in original filings and consult a qualified professional before making decisions.
 
 ## Known limitations
 
-- Reliable automatic peer discovery is not enabled. The application reports peer
-  comparison as unavailable instead of substituting an ETF.
-- PDF retrieval uses a compact lexical ranker rather than embeddings.
-- Reports are downloaded as Markdown; PDF export is intentionally not included.
-- Live provider and market behavior cannot be guaranteed by the offline tests.
-- The application does not persist research sessions or uploaded documents.
-
-## Future improvements
-
-- Add opt-in OCR for scanned filings.
-- Add an authoritative, licensed peer-classification source.
-- Add explicit multi-ticker comparison with like-currency normalization.
-- Add more filing concepts with issuer-specific taxonomy tests.
-- Add optional user-approved local encrypted report history.
+- yfinance is an unofficial third-party interface and may be delayed, incomplete, or
+  temporarily blocked.
+- SEC Company Facts coverage and taxonomy vary by issuer. The application preserves
+  filing form, date, fiscal context, unit, period, and accession when provided.
+- The scorecard uses general, documented rules and is not sector-specific.
+- DCF is a simplified five-year model; it is not a substitute for a complete forecast.
+- News quality depends on upstream metadata. The deterministic relevance layer reduces,
+  but cannot eliminate, irrelevant stories.
+- Optional transcript coverage depends on the FMP account and plan.
+- PDF extraction is text-only; scanned documents require OCR, which is not enabled.
+- PDF retrieval uses compact lexical relevance rather than embeddings.
+- The workflow analyzes one primary ticker per run and does not perform peer comparison.
+- Reports download as Markdown; PDF export and persistent report history are not
+  included.
+- Offline mocks validate application behavior, not the availability or correctness of
+  live third-party services.

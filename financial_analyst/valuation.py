@@ -40,11 +40,22 @@ class DCFScenario(BaseModel):
     per_share_value: float | None
 
 
+class DCFSensitivityTable(BaseModel):
+    """Per-share values over explicit discount and terminal-growth assumptions."""
+
+    discount_rates: list[float]
+    terminal_growth_rates: list[float]
+    values: list[list[float | None]]
+    invalid_cells: list[str]
+
+
 class DCFResult(BaseModel):
     currency: str
     base_free_cash_flow: float
     period_end: str | None
+    projection_years: int
     scenarios: list[DCFScenario]
+    sensitivity: DCFSensitivityTable | None = None
     warnings: list[str]
 
 
@@ -83,12 +94,61 @@ def calculate_dcf(inputs: DCFInputs) -> DCFResult:
         _calculate_scenario(inputs, name, growth, discount, terminal)
         for name, growth, discount, terminal in definitions
     ]
+    sensitivity = _calculate_sensitivity(inputs)
     return DCFResult(
         currency=inputs.currency,
         base_free_cash_flow=inputs.base_free_cash_flow,
         period_end=inputs.period_end,
+        projection_years=inputs.projection_years,
         scenarios=scenarios,
+        sensitivity=sensitivity,
         warnings=warnings,
+    )
+
+
+def _calculate_sensitivity(inputs: DCFInputs) -> DCFSensitivityTable | None:
+    if inputs.cash is None or inputs.debt is None or inputs.diluted_shares is None:
+        return None
+    discount_rates = sorted(
+        {
+            round(inputs.discount_rate + delta, 4)
+            for delta in (-0.02, -0.01, 0.0, 0.01, 0.02)
+            if inputs.discount_rate + delta > 0
+        }
+    )
+    terminal_rates = sorted(
+        {
+            round(inputs.terminal_growth_rate + delta, 4)
+            for delta in (-0.01, -0.005, 0.0, 0.005, 0.01)
+            if inputs.terminal_growth_rate + delta > -1
+        }
+    )
+    values: list[list[float | None]] = []
+    invalid: list[str] = []
+    for terminal_rate in terminal_rates:
+        row: list[float | None] = []
+        for discount_rate in discount_rates:
+            if terminal_rate >= discount_rate:
+                row.append(None)
+                invalid.append(
+                    f"Terminal growth {terminal_rate:.2%} must be below "
+                    f"discount rate {discount_rate:.2%}."
+                )
+                continue
+            scenario = _calculate_scenario(
+                inputs,
+                "Sensitivity",
+                inputs.growth_rate,
+                discount_rate,
+                terminal_rate,
+            )
+            row.append(scenario.per_share_value)
+        values.append(row)
+    return DCFSensitivityTable(
+        discount_rates=discount_rates,
+        terminal_growth_rates=terminal_rates,
+        values=values,
+        invalid_cells=invalid,
     )
 
 

@@ -1,7 +1,7 @@
 [project]
 name = "financial-analyst-agent"
-version = "1.0.0"
-description = "Local-first, evidence-aware financial research with selectable LLM providers."
+version = "2.0.0"
+description = "Local evidence-grounded financial research with deterministic analytics."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
@@ -11,6 +11,7 @@ dependencies = [
     "langchain-ollama>=1.0,<2",
     "langchain-openai>=1.0,<2",
     "langgraph>=1.0,<2",
+    "pandas>=2.2,<4",
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.7,<3",
     "pymupdf>=1.25,<2",

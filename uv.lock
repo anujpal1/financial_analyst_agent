@@ -323,7 +323,7 @@ wheels = [
 
 [[package]]
 name = "financial-analyst-agent"
-version = "1.0.0"
+version = "2.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "langchain-anthropic" },
@@ -332,6 +332,7 @@ dependencies = [
     { name = "langchain-ollama" },
     { name = "langchain-openai" },
     { name = "langgraph" },
+    { name = "pandas" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pymupdf" },
@@ -354,6 +355,7 @@ requires-dist = [
     { name = "langchain-ollama", specifier = ">=1.0,<2" },
     { name = "langchain-openai", specifier = ">=1.0,<2" },
     { name = "langgraph", specifier = ">=1.0,<2" },
+    { name = "pandas", specifier = ">=2.2,<4" },
     { name = "pydantic", specifier = ">=2.10,<3" },
     { name = "pydantic-settings", specifier = ">=2.7,<3" },
     { name = "pymupdf", specifier = ">=1.25,<2" },

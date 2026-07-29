@@ -44,6 +44,10 @@ def _mock_tools() -> tuple[StructuredTool, ...]:
                 "day_low": 99.0,
                 "volume": 1_000_000,
                 "currency": "USD",
+                "history": [
+                    {"date": "2026-01-02", "close": 99.0},
+                    {"date": "2026-01-03", "close": 100.0},
+                ],
             },
         )
 
@@ -67,19 +71,6 @@ def _mock_tools() -> tuple[StructuredTool, ...]:
             },
         )
 
-    def price_history(ticker: str) -> DataResult:
-        return _available(
-            "price_history",
-            {
-                "period": "6 months",
-                "interval": "daily",
-                "points": [
-                    {"date": "2026-01-02", "close": 99.0},
-                    {"date": "2026-01-03", "close": 100.0},
-                ],
-            },
-        )
-
     def recent_news(ticker: str) -> DataResult:
         return DataResult.unavailable(
             name="recent_news",
@@ -95,14 +86,6 @@ def _mock_tools() -> tuple[StructuredTool, ...]:
             message="SEC fixture intentionally unavailable.",
         )
 
-    def peer_comparison(ticker: str) -> DataResult:
-        return DataResult.unavailable(
-            name="peer_comparison",
-            source="Mock peers",
-            message="No reliable peers.",
-            content_type="peer_comparison",
-        )
-
     def earnings_transcript(ticker: str, year: int, quarter: int) -> DataResult:
         return DataResult.unavailable(
             name="earnings_transcript",
@@ -116,10 +99,8 @@ def _mock_tools() -> tuple[StructuredTool, ...]:
     functions = (
         (market_snapshot, "market_snapshot"),
         (financial_statements, "financial_statements"),
-        (price_history, "price_history"),
         (recent_news, "recent_news"),
         (sec_company_facts, "sec_company_facts"),
-        (peer_comparison, "peer_comparison"),
         (earnings_transcript, "earnings_transcript"),
         (run_dcf_tool, "discounted_cash_flow"),
     )
@@ -212,7 +193,7 @@ def test_report_generation_with_partial_data() -> None:
         analysis_date=datetime(2025, 1, 1, tzinfo=UTC),
     )
     assert "Market data unavailable" in report
-    assert "Limited" in quality
+    assert "Insufficient" in quality
     assert DISCLAIMER in report
 
 

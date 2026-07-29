@@ -10,9 +10,12 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.graph import END, START, StateGraph
 
+from financial_analyst.analytics import build_data_quality
 from financial_analyst.config import AppSettings
+from financial_analyst.evidence import build_evidence_catalog
 from financial_analyst.llm import validate_tool_calling
 from financial_analyst.models import (
+    AnalysisDepth,
     Availability,
     DataResult,
     EvidenceRef,
@@ -20,7 +23,7 @@ from financial_analyst.models import (
     ResearchResult,
     utc_now,
 )
-from financial_analyst.reporting import build_report, detect_conflicts
+from financial_analyst.reporting import build_validated_report, detect_conflicts
 from financial_analyst.security import new_session_id
 from financial_analyst.tickers import resolve_ticker
 from financial_analyst.tools import build_tool_registry, tool_mapping
@@ -34,6 +37,15 @@ class ResearchState(TypedDict, total=False):
     analysis_date: Any
     report_markdown: str
     evidence_quality: str
+    evidence_quality_detail: Any
+    dashboard: Any
+    historical_analysis: Any
+    scorecard: Any
+    claims: Any
+    evidence: Any
+    sources: Any
+    data_quality: Any
+    validation: Any
 
 
 def build_research_graph(
@@ -63,14 +75,12 @@ def build_research_graph(
         results = [
             mapping["market_snapshot"].invoke({"ticker": ticker}),
             mapping["financial_statements"].invoke({"ticker": ticker}),
-            mapping["price_history"].invoke({"ticker": ticker}),
-            mapping["recent_news"].invoke({"ticker": ticker}),
             mapping["sec_company_facts"].invoke({"ticker": ticker}),
         ]
 
         query_lower = request.query.lower()
-        if any(word in query_lower for word in ("peer", "competitor", "relative valuation")):
-            results.append(mapping["peer_comparison"].invoke({"ticker": ticker}))
+        if request.analysis_depth is not AnalysisDepth.QUICK:
+            results.append(mapping["recent_news"].invoke({"ticker": ticker}))
         if any(word in query_lower for word in ("transcript", "earnings call")):
             period = _transcript_period(request.query)
             if period:
@@ -113,14 +123,35 @@ def build_research_graph(
         return {"data": results}
 
     def report_node(state: ResearchState) -> ResearchState:
-        report, quality = build_report(
+        (
+            report,
+            quality,
+            dashboard,
+            history,
+            scorecard,
+            claims,
+            sources,
+            validation,
+        ) = build_validated_report(
             llm=llm,
             request=state["request"],
             ticker=state["ticker"],
             data=state["data"],
             analysis_date=state["analysis_date"],
         )
-        return {"report_markdown": report, "evidence_quality": quality}
+        return {
+            "report_markdown": report,
+            "evidence_quality": quality.label.value,
+            "evidence_quality_detail": quality,
+            "dashboard": dashboard,
+            "historical_analysis": history,
+            "scorecard": scorecard,
+            "claims": claims,
+            "evidence": build_evidence_catalog(state["data"]),
+            "sources": sources,
+            "data_quality": build_data_quality(state["data"]),
+            "validation": validation,
+        }
 
     graph = StateGraph(ResearchState)
     graph.add_node("validate_request", validate_node)
@@ -156,6 +187,15 @@ def run_research(
         report_markdown=state["report_markdown"],
         data=state["data"],
         evidence_quality=state["evidence_quality"],
+        evidence_quality_detail=state["evidence_quality_detail"],
+        dashboard=state["dashboard"],
+        historical_analysis=state["historical_analysis"],
+        scorecard=state["scorecard"],
+        claims=state["claims"],
+        evidence=state["evidence"],
+        sources=state["sources"],
+        data_quality=state["data_quality"],
+        validation=state["validation"],
     )
 
 

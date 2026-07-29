@@ -52,5 +52,8 @@ def test_streamlit_application_smoke() -> None:
     app = AppTest.from_file(str(app_path), default_timeout=20)
     app.run()
     assert not app.exception
-    assert app.title[0].value == "Evidence-Aware Financial Research"
+    assert any(
+        "Evidence-Grounded Financial Research Workbench" in element.value
+        for element in app.markdown
+    )
     assert len(app.button) >= 2
