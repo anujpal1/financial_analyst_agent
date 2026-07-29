@@ -1,3 +1,17 @@
+[![Python](https://img.shields.io/badge/Python-3.11–3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![UI](https://img.shields.io/badge/UI-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![Workflow](https://img.shields.io/badge/Workflow-LangGraph-EA6B36)](https://www.langchain.com/langgraph)
+[![LLM Framework](https://img.shields.io/badge/LLM_Framework-LangChain-1C3C3C?logo=langchain&logoColor=white)](https://www.langchain.com/)
+[![Data](https://img.shields.io/badge/Data-pandas-150458?logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![Validation](https://img.shields.io/badge/Validation-Pydantic-E92063?logo=pydantic&logoColor=white)](https://docs.pydantic.dev/)
+[![Market Data](https://img.shields.io/badge/Market_Data-yfinance-6F42C1)](https://pypi.org/project/yfinance/)
+[![PDF](https://img.shields.io/badge/PDF-PyMuPDF-00897B)](https://pymupdf.readthedocs.io/)
+[![LLM Providers](https://img.shields.io/badge/LLMs-OpenAI_|_Gemini_|_Anthropic_|_Ollama-412991)](#supported-model-providers)
+[![Package Manager](https://img.shields.io/badge/Package_Manager-uv-DE5FE9?logo=astral&logoColor=white)](https://docs.astral.sh/uv/)
+[![Tests](https://img.shields.io/badge/Tests-112_Passing-2EA44F?logo=pytest&logoColor=white)](#tests-and-evaluation)
+[![Evaluation](https://img.shields.io/badge/Offline_Evaluation-53_Tasks_Passing-2EA44F)](#tests-and-evaluation)
+
+
 # AI Financial Research Assistant
 
 This project is a local Streamlit application for researching one publicly traded company at a time. It combines market data, annual financial statements, SEC filing facts, company news, optional earnings-call transcripts, and evidence from an uploaded PDF. Deterministic code calculates financial trends and an FCFE valuation, while a selected language model plans the research and writes a constrained qualitative summary.
