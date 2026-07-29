@@ -100,6 +100,8 @@ These are placeholders only; no generated screenshots are committed.
 ├── .env.example
 ├── .gitignore
 ├── .python-version
+├── .streamlit/
+│   └── config.toml
 ├── app.py
 ├── financial_analyst/
 │   ├── __init__.py

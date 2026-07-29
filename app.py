@@ -116,51 +116,231 @@ def _inject_theme() -> None:
         """
         <style>
         :root {
-            --paper: #f7f5f0;
-            --surface: #fffefa;
-            --slate: #26323d;
-            --muted: #65717c;
-            --navy: #294b68;
-            --border: #d9dde0;
+            --page: #f7f8fa;
+            --sidebar: #f1f4f6;
+            --surface: #ffffff;
+            --text: #1f2933;
+            --muted: #5f6c78;
+            --navy: #315a78;
+            --navy-hover: #274a65;
+            --border: #d9e0e5;
             --positive: #2f6b55;
-            --negative: #8b3e3e;
-            --amber: #9a6b19;
+            --negative: #8b4545;
+            --amber-bg: #fff8e7;
+            --amber-text: #704f14;
         }
-        .stApp { background: var(--paper); color: var(--slate); }
-        [data-testid="stSidebar"] { background: #eef0ef; border-right: 1px solid var(--border); }
-        .block-container { padding-top: 1.35rem; padding-bottom: 3rem; max-width: 1500px; }
+
+        html, body, .stApp,
+        [data-testid="stAppViewContainer"],
+        [data-testid="stMain"] {
+            background: var(--page) !important;
+            color: var(--text) !important;
+        }
+
+        [data-testid="stSidebar"] {
+            background: var(--sidebar) !important;
+            border-right: 1px solid var(--border);
+        }
+
+        [data-testid="stSidebarContent"] {
+            padding-top: 1rem;
+        }
+
+        .block-container {
+            padding-top: 1rem;
+            padding-bottom: 3rem;
+            max-width: 1320px;
+        }
+
+        .stMarkdown,
+        .stMarkdown p,
+        .stMarkdown li,
+        [data-testid="stText"],
+        [data-testid="stCaptionContainer"],
+        [data-testid="stWidgetLabel"],
+        [data-testid="stWidgetLabel"] p {
+            color: var(--text) !important;
+        }
+
+        [data-testid="stCaptionContainer"],
+        [data-testid="stCaptionContainer"] p {
+            color: var(--muted) !important;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: var(--text) !important;
+            letter-spacing: -0.015em;
+        }
+
         .workbench-header {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-left: 4px solid var(--navy);
-            padding: 1rem 1.2rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(38, 50, 61, 0.05);
+            border-radius: 8px;
+            padding: 1.15rem 1.3rem;
+            margin-bottom: 1.1rem;
         }
-        .workbench-header h1 { font-size: 1.45rem; margin: 0; color: var(--slate); }
-        .workbench-header p { color: var(--muted); margin: .35rem 0 .7rem 0; }
-        .header-meta { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; font-size: .82rem; }
-        .header-meta strong { color: var(--navy); }
-        .disclaimer-line { color: var(--muted); font-size: .76rem; margin-top: .65rem; }
+
+        .workbench-header h1 {
+            color: var(--text) !important;
+            font-size: 1.4rem;
+            font-weight: 650;
+            line-height: 1.25;
+            margin: 0;
+        }
+
+        .workbench-header p {
+            color: var(--muted) !important;
+            margin: .4rem 0 .8rem;
+        }
+
+        .header-meta {
+            color: var(--text) !important;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .45rem 1.4rem;
+            font-size: .82rem;
+        }
+
+        .header-meta span { color: var(--text) !important; }
+        .header-meta strong { color: var(--navy) !important; }
+
+        .disclaimer-line {
+            color: var(--muted) !important;
+            font-size: .76rem;
+            margin-top: .65rem;
+        }
+
+        /* Inputs use one light treatment regardless of the browser's prior theme. */
+        .stTextInput input,
+        .stTextArea textarea,
+        .stNumberInput input,
+        [data-baseweb="select"] > div {
+            background: var(--surface) !important;
+            border-color: var(--border) !important;
+            color: var(--text) !important;
+            -webkit-text-fill-color: var(--text) !important;
+        }
+
+        .stTextInput input::placeholder,
+        .stTextArea textarea::placeholder {
+            color: #87929c !important;
+            opacity: 1;
+        }
+
+        [data-baseweb="select"] span,
+        [data-baseweb="select"] svg {
+            color: var(--text) !important;
+            fill: var(--text) !important;
+        }
+
+        [data-baseweb="popover"],
+        [role="listbox"],
+        [role="option"] {
+            background: var(--surface) !important;
+            color: var(--text) !important;
+        }
+
+        [role="option"]:hover {
+            background: #eaf0f4 !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] {
+            background: var(--surface) !important;
+            border: 1px dashed #b9c4cc !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] span,
+        [data-testid="stFileUploaderDropzone"] small {
+            color: var(--muted) !important;
+        }
+
+        [data-testid="stFileUploaderDropzone"] button {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--navy) !important;
+        }
+
+        [data-testid="stExpander"] {
+            background: var(--surface) !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 7px;
+        }
+
+        [data-testid="stExpander"] summary,
+        [data-testid="stExpander"] summary p,
+        [data-testid="stExpander"] summary svg {
+            color: var(--text) !important;
+            fill: var(--text) !important;
+        }
+
+        [data-testid="stAlert"] {
+            border: 1px solid #ead9a5 !important;
+            background: var(--amber-bg) !important;
+            color: var(--amber-text) !important;
+        }
+
+        [data-testid="stAlert"] p,
+        [data-testid="stAlert"] svg {
+            color: var(--amber-text) !important;
+            fill: var(--amber-text) !important;
+        }
+
+        .stButton > button,
+        .stDownloadButton > button {
+            border-radius: 6px;
+            font-weight: 600;
+        }
+
+        .stButton > button[kind="primary"] {
+            background: var(--navy) !important;
+            border-color: var(--navy) !important;
+            color: #ffffff !important;
+        }
+
+        .stButton > button[kind="primary"]:hover {
+            background: var(--navy-hover) !important;
+            border-color: var(--navy-hover) !important;
+        }
+
+        .stButton > button:disabled {
+            background: #dbe3e8 !important;
+            border-color: #d2dbe1 !important;
+            color: #65737f !important;
+            opacity: 1 !important;
+        }
+
+        .stCheckbox label span,
+        .stSlider label,
+        .stSlider [data-testid="stThumbValue"] {
+            color: var(--text) !important;
+        }
+
         div[data-testid="stMetric"] {
             background: var(--surface);
             border: 1px solid var(--border);
             border-radius: 6px;
             padding: .75rem .85rem;
-            box-shadow: 0 2px 7px rgba(38, 50, 61, 0.04);
             min-height: 116px;
         }
+
         div[data-testid="stMetric"] label { color: var(--muted); }
-        div[data-testid="stMetricValue"] { color: var(--slate); font-size: 1.35rem; }
-        .metric-caption { color: var(--muted); font-size: .72rem; margin-top: -.55rem; }
-        .status-pill {
-            display: inline-block; border: 1px solid var(--border); background: var(--surface);
-            padding: .2rem .55rem; border-radius: 999px; font-size: .75rem;
+        div[data-testid="stMetricValue"] {
+            color: var(--text) !important;
+            font-size: 1.35rem;
         }
-        h2, h3 { color: var(--slate); letter-spacing: -.01em; }
-        .stButton > button[kind="primary"] { background: var(--navy); border-color: var(--navy); }
+
         [data-baseweb="tab-list"] { gap: .35rem; }
-        [data-baseweb="tab"] { background: transparent; border-radius: 4px 4px 0 0; }
+        [data-baseweb="tab"] {
+            background: transparent;
+            border-radius: 4px 4px 0 0;
+            color: var(--muted) !important;
+        }
+
+        [data-baseweb="tab"][aria-selected="true"] {
+            color: var(--navy) !important;
+        }
+
+        hr { border-color: var(--border) !important; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -503,10 +683,10 @@ _initialize_session()
 _inject_theme()
 
 with st.sidebar:
-    st.subheader("Workbench controls")
-    st.caption(f"Session {st.session_state.session_id[:8]}")
+    st.subheader("Research settings")
+    st.caption(f"Session · {st.session_state.session_id[:8]}")
 
-    with st.expander("1. LLM configuration", expanded=True):
+    with st.expander("LLM configuration", expanded=True):
         provider = LLMProvider(st.selectbox("LLM provider", [item.value for item in LLMProvider]))
         suggested_models = DEFAULT_MODELS[provider]
         selected_model = st.selectbox("Model", suggested_models)
@@ -591,7 +771,7 @@ with st.sidebar:
             st.error(st.session_state.provider_status)
     st.caption(f"Connection status: {st.session_state.provider_status}")
 
-    with st.expander("2. Optional data sources"):
+    with st.expander("Optional data sources"):
         sec_user_agent = st.text_input(
             "SEC User-Agent",
             value=settings.sec_user_agent or "",
@@ -605,14 +785,14 @@ with st.sidebar:
         )
         st.caption("Core market and annual statement data use yfinance.")
 
-    with st.expander("3. Analysis settings"):
+    with st.expander("Analysis settings"):
         st.caption(
             "Quick skips news. Standard includes relevant news. Detailed uses the same "
             "verified sources with the fullest report."
         )
         st.caption("Valuation runs only when the question asks for it.")
 
-    with st.expander("4. Session controls"):
+    with st.expander("Session controls"):
         st.write("Reset clears results, uploads, UI-entered keys, and per-run data clients.")
         if st.button("Clear / reset session", use_container_width=True):
             _clear_session()
