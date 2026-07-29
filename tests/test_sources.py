@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import pytest
 from pydantic import SecretStr
 
@@ -110,10 +111,40 @@ def test_missing_market_data_is_structured(
         def __init__(self) -> None:
             self.fast_info = {}
 
+        def history(self, **kwargs: Any) -> pd.DataFrame:
+            return pd.DataFrame()
+
     monkeypatch.setattr("financial_analyst.market.yf.Ticker", lambda ticker: EmptyTicker())
     result = YFinanceClient().market_snapshot("NONE")
     assert result.status is Availability.UNAVAILABLE
     assert result.values == {}
+
+
+def test_market_snapshot_uses_latest_daily_bar_when_fast_quote_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class HistoryTicker:
+        def __init__(self) -> None:
+            self.fast_info: dict[str, Any] = {}
+
+        def history(self, **kwargs: Any) -> pd.DataFrame:
+            return pd.DataFrame(
+                {
+                    "Open": [98.0],
+                    "High": [102.0],
+                    "Low": [97.0],
+                    "Close": [101.0],
+                    "Volume": [1_250_000],
+                },
+                index=pd.to_datetime(["2026-07-28"]),
+            )
+
+    monkeypatch.setattr("financial_analyst.market.yf.Ticker", lambda ticker: HistoryTicker())
+    result = YFinanceClient().market_snapshot("MSFT")
+    assert result.status is Availability.PARTIAL
+    assert result.values["price"] == 101.0
+    assert result.values["price_basis"] == "latest daily bar"
+    assert result.values["price_as_of"] == "2026-07-28"
 
 
 def test_peer_comparison_never_uses_etf_fallback() -> None:

@@ -166,7 +166,8 @@ def quality_check_report(report: str) -> str:
 def _render_sources(data: list[DataResult]) -> str:
     lines = ["## Data Sources Used"]
     for item in data:
-        lines.append(f"- **{item.source}** — {item.status.value}")
+        dataset = item.name.replace("_", " ").title()
+        lines.append(f"- **{dataset}** — {item.source} — {item.status.value}")
     return "\n".join(lines)
 
 
@@ -179,6 +180,8 @@ def _render_market(result: DataResult, ticker: str) -> str:
         "## Market Overview",
         f"- Ticker: {ticker}",
         f"- Price: {_money(values.get('price'), currency)}",
+        f"- Price basis: {values.get('price_basis') or 'unavailable'}",
+        f"- Price as of: {values.get('price_as_of') or 'current fast quote'}",
         f"- Day range: {_money(values.get('day_low'), currency)} to "
         f"{_money(values.get('day_high'), currency)}",
         f"- Volume: {_quantity(values.get('volume'))}",

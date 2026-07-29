@@ -42,30 +42,57 @@ class YFinanceClient:
 
     def market_snapshot(self, ticker: str) -> DataResult:
         source = "Yahoo Finance via yfinance"
+        fast_quote_error: Exception | None = None
         try:
             stock = yf.Ticker(ticker)
-            fast = stock.fast_info
+            try:
+                fast = stock.fast_info
+            except Exception as error:
+                fast = {}
+                fast_quote_error = error
             values = {
                 "price": _number(_lookup(fast, "last_price")),
                 "day_high": _number(_lookup(fast, "day_high")),
                 "day_low": _number(_lookup(fast, "day_low")),
                 "volume": _number(_lookup(fast, "last_volume")),
                 "currency": _lookup(fast, "currency"),
+                "price_as_of": None,
+                "price_basis": "fast quote",
             }
-            missing = [name for name, value in values.items() if value is None]
+            missing = _missing_snapshot_fields(values)
             if values["price"] is None or values["price"] <= 0:
+                _apply_latest_daily_bar(stock, values)
+                missing = _missing_snapshot_fields(values)
+            if values["price"] is None or values["price"] <= 0:
+                message = (
+                    f"No active market snapshot or recent daily bar was returned for {ticker}."
+                )
+                if fast_quote_error is not None:
+                    message = safe_error_message(
+                        fast_quote_error,
+                        context=message,
+                    )
                 return DataResult.unavailable(
                     name="market_snapshot",
                     source=source,
-                    message=f"No active market snapshot was returned for {ticker}.",
+                    message=message,
                     missing_fields=missing,
                 )
+            used_daily_bar = values["price_basis"] == "latest daily bar"
             return DataResult(
                 name="market_snapshot",
-                status=Availability.PARTIAL if missing else Availability.AVAILABLE,
+                status=(
+                    Availability.PARTIAL if missing or used_daily_bar else Availability.AVAILABLE
+                ),
                 source=source,
                 values=values,
                 missing_fields=missing,
+                message=(
+                    "The fast quote was unavailable; values use the latest available "
+                    "daily Yahoo bar."
+                    if used_daily_bar
+                    else None
+                ),
                 evidence=[
                     EvidenceRef(
                         source=source,
@@ -297,3 +324,34 @@ def _history_date(value: Any) -> str:
     if hasattr(value, "date"):
         return value.date().isoformat()
     return str(value)
+
+
+def _missing_snapshot_fields(values: dict[str, Any]) -> list[str]:
+    fields = ("price", "day_high", "day_low", "volume", "currency")
+    return [name for name in fields if values.get(name) is None]
+
+
+def _apply_latest_daily_bar(stock: Any, values: dict[str, Any]) -> None:
+    """Use a real recent OHLCV bar when Yahoo's fast-quote endpoint is unavailable."""
+
+    history = stock.history(
+        period="5d",
+        interval="1d",
+        auto_adjust=False,
+    )
+    if history is None or history.empty:
+        return
+    latest = history.iloc[-1]
+    close = _number(_lookup(latest, "Close"))
+    if close is None or close <= 0:
+        return
+    values.update(
+        {
+            "price": close,
+            "day_high": _number(_lookup(latest, "High")),
+            "day_low": _number(_lookup(latest, "Low")),
+            "volume": _number(_lookup(latest, "Volume")),
+            "price_as_of": _history_date(history.index[-1]),
+            "price_basis": "latest daily bar",
+        }
+    )

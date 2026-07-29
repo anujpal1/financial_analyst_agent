@@ -201,8 +201,14 @@ with st.sidebar:
         sec_user_agent = st.text_input(
             "SEC User-Agent",
             value=settings.sec_user_agent or "",
+            placeholder="FinancialAnalystAgent/1.0 you@example.com",
             help="Use an application name plus contact email. Required only for SEC access.",
         )
+        if not sec_user_agent.strip():
+            st.warning(
+                "SEC filing data is disabled until this field contains an application "
+                "name and contact email."
+            )
         fmp_key_text = st.text_input(
             "FMP API key (optional transcripts)",
             type="password",
