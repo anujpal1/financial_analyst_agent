@@ -1,30 +1,48 @@
 [project]
 name = "financial-analyst-agent"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.0.0"
+description = "Local-first, evidence-aware financial research with selectable LLM providers."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
-    "beautifulsoup4>=4.15.0",
-    "chromadb>=1.5.9",
-    "ddgs>=9.14.4",
-    "finnhub-python>=2.4.29",
-    "fpdf2>=2.8.7",
-    "gnews>=0.8.2",
-    "langchain-chroma>=1.1.0",
-    "langchain-community>=0.4.2",
-    "langchain-core>=1.4.8",
-    "langchain-ollama>=1.1.0",
-    "langgraph>=1.2.7",
-    "loguru>=0.7.3",
-    "newsapi-python>=0.2.7",
-    "numpy>=2.5.0",
-    "pandas>=3.0.3",
-    "plotly>=6.8.0",
-    "pymupdf>=1.28.0",
-    "python-dotenv>=1.2.2",
-    "requests>=2.34.2",
-    "streamlit>=1.58.0",
-    "tavily-python>=0.7.26",
-    "yfinance>=1.5.1",
+    "langchain-anthropic>=1.0,<2",
+    "langchain-core>=1.0,<2",
+    "langchain-google-genai>=3.0,<5",
+    "langchain-ollama>=1.0,<2",
+    "langchain-openai>=1.0,<2",
+    "langgraph>=1.0,<2",
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "pymupdf>=1.25,<2",
+    "requests>=2.32,<3",
+    "streamlit>=1.45,<2",
+    "yfinance>=0.2.54,<2",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3,<10",
+    "ruff>=0.11,<1",
+]
+
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["financial_analyst*"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+exclude = [".venv", "_validation_venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.ruff.format]
+quote-style = "double"
